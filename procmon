@@ -43,6 +43,7 @@ sub checkproc {
         unless ($p->uid ~~ @authorised) { 
             if ($p->cmndline =~ /$REGEX/) { 
                 kill(9, $p->pid);
+                print $logfile "Killed: $p->cmdline ran by: $p->uid\n";
             }
         }
     }
