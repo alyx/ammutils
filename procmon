@@ -1,0 +1,54 @@
+#!/usr/bin/perl
+
+use warnings;
+use strict;
+use Getopt::Long;
+use Proc::ProcessTable;
+
+our $VERSION = '0.1.0';
+our $REGEX = qr/(ircd)/i;
+our @authorised = qw/ 0 /;
+
+my $log_location = '/var/log/procmon.log';
+my $sleep_time = 30;
+my $t = Proc::ProcessTable->new;
+
+print("procmon must run as root!\n") and exit 1 unless $< == 0;
+
+GetOptions('log|l=i' => \$log_location, 'sleep|wait|w=i' => \$sleep_time, 'version|v' => \my $option_v, 'help|h' => \my $option_h );
+
+if ($option_v) {
+    print "procmon $VERSION\n";
+    exit 0;
+}
+
+if ($option_h) {
+    print <<EOH;
+    Help for $0
+    -h --help        Display help.
+    -v --version     Display version.,
+    -w --wait        Specify the wait time (In seconds) to check for processes. (Default: 30).
+    -l --log         Specify the location of the logfile (Default: /var/log/procmon.log).
+EOH
+    exit 0;
+}
+
+open STDIN, '<', '/dev/null' or die( "Can't read /dev/null: $!" );
+open STDOUT, '>>', '/dev/null' or die( "Can't write to /dev/null: $!" ); 
+open STDERR, '>>', '/dev/null' or die( "Can't write to /dev/null: $!" );
+open (our $logfile, '>', $log_location) or die ( "Can't write to $log_location: $!" );
+
+sub checkproc {
+    foreach my $p ( @{$t->table} ){
+        unless ($p->uid ~~ @authorised) { 
+            if ($p->cmndline =~ /$REGEX/) { 
+                kill(9, $p->pid);
+            }
+        }
+    }
+}
+
+while (1) {
+    checkproc;
+    sleep $sleep_time;
+}
